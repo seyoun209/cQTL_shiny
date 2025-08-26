@@ -1,1 +1,14 @@
-./data/*
+# Data files (large files)
+/data/*.Rdata
+/data/*.csv
+/data/*.txt
+/data/*.json
+
+# R specific files
+.Rhistory
+.RData
+.Rproj.user/
+
+# Exceptions - keep these small files
+!data/README.md
+!data/.gitkeep
