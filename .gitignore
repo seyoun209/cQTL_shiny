@@ -1,2 +1,1 @@
-./data/raw/*.txt
-./data/raw/*.csv
+./data/*
