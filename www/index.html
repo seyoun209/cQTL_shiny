@@ -1,0 +1,45 @@
+cat > www/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chondrocyte Expression Explorer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Chondrocyte Gene Expression Explorer</h1>
+  
+  <p>This project provides interactive tools to explore gene expression data from chondrocytes under different conditions.</p>
+  
+  <h2>Available Tools:</h2>
+  
+  <div>
+    <a href="interactive.html" class="button">Static HTML Version</a>
+    <a href="http://localhost:8888" class="button">Shiny App Version (Real-time Analysis)</a>
+  </div>
+  
+  <h2>Dataset Information:</h2>
+  <ul>
+    <li><strong>Samples:</strong> Chondrocyte data from multiple donors</li>
+    <li><strong>Conditions:</strong> Control (CTL) and Fibronectin Fragment (FNF)</li>
+    <li><strong>Analysis:</strong> RNA-seq differential expression</li>
+  </ul>
+</body>
+</html>
+EOF

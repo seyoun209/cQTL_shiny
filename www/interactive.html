@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Gene Expression Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.25.2/plotly.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .dashboard {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        
+        .search-input, .plot-select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .search-input:focus, .plot-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .gene-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+            margin-top: 10px;
+        }
+        
+        .gene-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .gene-item:hover {
+            background: #f8f9ff;
+            transform: translateX(5px);
+        }
+        
+        .gene-item:last-child {
+            border-bottom: none;
+        }
+        
+        .gene-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .gene-symbol {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .gene-id {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .fold-change {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        .fold-change.positive {
+            background: #e8f5e8;
+            color: #2d5a2d;
+        }
+        
+        .fold-change.negative {
+            background: #ffe8e8;
+            color: #5a2d2d;
+        }
+        
+        .plot-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            min-height: 500px;
+        }
+        
+        .plot-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            font-size: 1.1rem;
+            color: #666;
+        }
+        
+        .no-selection {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            color: #999;
+        }
+        
+        .no-selection h3 {
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .control-group {
+                min-width: unset;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1> Gene Expression Dashboard</h1>
+            <p>Interactive visualization of differential gene expression data</p>
+        </div>
+        
+        <div class="dashboard">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="geneSearch">Search Genes</label>
+                    <input type="text" id="geneSearch" class="search-input" placeholder="Type gene symbol or ENSG ID...">
+                    <div class="gene-list" id="geneList"></div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="plotType">Plot Type</label>
+                    <select id="plotType" class="plot-select">
+                        <option value="boxplot">Boxplot with Points</option>
+                        <option value="scatter">Scatter Plot</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="colorBy">Color Points By</label>
+                    <select id="colorBy" class="plot-select">
+                        <option value="sex">Sex</option>
+                        <option value="age">Age</option>
+                        <option value="condition">Condition</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="plot-container">
+                <div class="no-selection" id="noSelection">
+                    <h3>Select a gene to begin</h3>
+                    <p>Search and click on a gene from the list above to visualize its expression</p>
+                </div>
+                <div id="plotDiv" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Initialize arrays to hold our data
+let allGenes = []; // Renamed from geneList to avoid collision
+let expressionData = [];
+
+// Define colors globally so they're available to all functions
+const colors = {
+    // Condition colors
+    'CTL': '#9FCCE4',  // Light blue for Control
+    'FNF': '#FAB394',  // Salmon for FNF
+    
+    // Sex colors
+    'M': '#0075B0',    // Dark blue for Male
+    'F': '#F8B7CD'     // Pink for Female
+};
+
+// Age color palette
+const ageColorScale = [
+    [0, '#ffcba4'], [0.2, '#cca283'], 
+    [0.4, '#997a62'], [0.6, '#806652'], 
+    [0.8, '#665142'], [1, '#332921']
+];
+
+// Load gene list and expression data from the JSON files
+Promise.all([
+    fetch('../data/genes.json').then(response => response.json()),
+    fetch('../data/expression_data.json').then(response => response.json())
+])
+.then(([genesData, exprData]) => {
+    // Process genes data
+    allGenes = genesData.map(gene => ({
+        ensgID: gene.gene_id,
+        symbol: gene.SYMBOL || gene.gene_id.split('.')[0], // Use SYMBOL if available
+        log2FoldChange: gene.log2FoldChange,
+        padj: gene.padj,
+        baseMean: gene.baseMean
+    }));
+    
+    expressionData = exprData;
+    
+    // Initialize the UI with loaded data
+    updateGeneList();
+    console.log("Data loaded successfully:", allGenes.length, "genes,", expressionData.length, "expression records");
+})
+.catch(error => {
+    console.error("Error loading data:", error);
+    document.getElementById('geneList').innerHTML = 
+        '<div class="gene-item">Error loading data. Please check console.</div>';
+});
+
+function getExpressionData(geneID) {
+    // Filter the data to only include the selected gene
+    const geneData = expressionData.filter(d => d.ensgID === geneID);
+    
+    console.log("Sample data point:", geneData[0]);
+    
+    // Transform the data to match the format expected by the visualization functions
+    const transformed = geneData.map(d => ({
+        donor: d.donor,
+        condition: d.condition,
+        sex: d.sex,
+        age: parseFloat(d.Age) || 0,
+        expression: Math.log2(parseFloat(d.count) + 1),
+        gene_symbol: d.SYMBOL || geneID
+    }));
+    
+    console.log("Transformed sample:", transformed[0]);
+    console.log("Unique sex values:", [...new Set(transformed.map(d => d.sex))]);
+    console.log("Age range:", Math.min(...transformed.map(d => d.age)), "-", 
+                Math.max(...transformed.map(d => d.age)));
+    
+    return transformed;
+}
+
+// Initialize the application
+let selectedGene = null;
+let currentData = [];
+
+// Search functionality
+const searchInput = document.getElementById('geneSearch');
+const geneListElement = document.getElementById('geneList');
+
+function updateGeneList(searchTerm = '') {
+    if (!allGenes || allGenes.length === 0) {
+        geneListElement.innerHTML = '<div class="gene-item">Loading genes...</div>';
+        return;
+    }
+    
+    const filteredGenes = allGenes.filter(gene => 
+        (gene.symbol && gene.symbol.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        gene.ensgID.toLowerCase().includes(searchTerm.toLowerCase())
+    ).slice(0, 100); // Limit to 100 results for performance
+    
+    geneListElement.innerHTML = '';
+    
+    if (filteredGenes.length === 0) {
+        geneListElement.innerHTML = '<div class="gene-item">No genes found</div>';
+        return;
+    }
+
+    filteredGenes.forEach(gene => {
+        const geneItem = document.createElement('div');
+        geneItem.className = 'gene-item';
+        geneItem.innerHTML = `
+            <div class="gene-info">
+                <div class="gene-symbol">${gene.symbol || gene.ensgID}</div>
+                <div class="gene-id">${gene.ensgID}</div>
+            </div>
+            <div class="fold-change ${gene.log2FoldChange > 0 ? 'positive' : 'negative'}">
+                ${gene.log2FoldChange > 0 ? '+' : ''}${gene.log2FoldChange.toFixed(2)}
+            </div>
+        `;
+        
+        geneItem.addEventListener('click', () => selectGene(gene));
+        geneListElement.appendChild(geneItem);
+    });
+}
+
+function selectGene(gene) {
+    selectedGene = gene;
+    currentData = getExpressionData(gene.ensgID);
+    searchInput.value = gene.symbol;
+    geneListElement.innerHTML = '';
+    updatePlot();
+}
+
+function updatePlot() {
+    if (!selectedGene || !currentData.length) {
+        document.getElementById('noSelection').style.display = 'flex';
+        document.getElementById('plotDiv').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('noSelection').style.display = 'none';
+    document.getElementById('plotDiv').style.display = 'block';
+
+    const plotType = document.getElementById('plotType').value;
+    const colorBy = document.getElementById('colorBy').value;
+
+    if (plotType === 'boxplot') {
+        createBoxplot();
+    } else {
+        createScatterplot();
+    }
+}
+
+function createBoxplot() {
+    const conditions = [...new Set(currentData.map(d => d.condition))];
+    const colorBy = document.getElementById('colorBy').value;
+    const traces = [];
+
+    conditions.forEach(condition => {
+        const conditionData = currentData.filter(d => d.condition === condition);
+        
+        // Box plot trace
+        traces.push({
+            y: conditionData.map(d => d.expression),
+            x: conditionData.map(d => d.condition),
+            type: 'box',
+            name: condition,
+            boxpoints: false,
+            fillcolor: colors[condition],
+            line: { color: colors[condition] },
+            opacity: 0.7
+        });
+
+        // Points colored by selected attribute
+        if (colorBy === 'sex') {
+            // Group by sex within each condition
+            const sexes = [...new Set(conditionData.map(d => d.sex))];
+            
+            sexes.forEach(sex => {
+                const sexData = conditionData.filter(d => d.sex === sex);
+                if (sexData.length > 0) {
+                    traces.push({
+                        y: sexData.map(d => d.expression),
+                        x: Array(sexData.length).fill(condition),
+                        mode: 'markers',
+                        type: 'scatter',
+                        name: `${sex} (${condition})`,
+                        marker: {
+                            color: colors[sex],
+                            size: 8,
+                            opacity: 0.8
+                        },
+                        customdata: sexData.map(d => [d.donor, d.age]),
+                        hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                     'Expression: %{y:.2f}<br>' +
+                                     'Donor: %{customdata[0]}<br>' +
+                                     'Age: %{customdata[1]}<br>' +
+                                     '<extra></extra>'
+                    });
+                }
+            });
+        } else if (colorBy === 'age') {
+            traces.push({
+                y: conditionData.map(d => d.expression),
+                x: Array(conditionData.length).fill(condition),
+                mode: 'markers',
+                type: 'scatter',
+                name: condition,
+                marker: {
+                    color: conditionData.map(d => d.age),
+                    colorscale: ageColorScale,
+                    size: 8,
+                    opacity: 0.8,
+                    colorbar: {
+                        title: 'Age',
+                        tickfont: { size: 10 }
+                    }
+                },
+                customdata: conditionData.map(d => [d.donor, d.sex]),
+                hovertemplate: '<b>Age: %{marker.color}</b><br>' +
+                             'Expression: %{y:.2f}<br>' +
+                             'Donor: %{customdata[0]}<br>' +
+                             'Sex: %{customdata[1]}<br>' +
+                             '<extra></extra>'
+            });
+        } else {
+            // Color by condition
+            traces.push({
+                y: conditionData.map(d => d.expression),
+                x: Array(conditionData.length).fill(condition),
+                mode: 'markers',
+                type: 'scatter',
+                name: condition,
+                marker: {
+                    color: colors[condition],
+                    size: 8,
+                    opacity: 0.8
+                },
+                customdata: conditionData.map(d => [d.donor, d.sex, d.age]),
+                hovertemplate: '<b>%{fullData.name}</b><br>' +
+                             'Expression: %{y:.2f}<br>' +
+                             'Donor: %{customdata[0]}<br>' +
+                             'Sex: %{customdata[1]}<br>' +
+                             'Age: %{customdata[2]}<br>' +
+                             '<extra></extra>'
+            });
+        }
+    });
+
+    const layout = {
+        title: `${selectedGene.symbol} Expression (Log2FC: ${selectedGene.log2FoldChange.toFixed(2)})`,
+        xaxis: { 
+            title: 'Condition',
+            type: 'category'
+        },
+        yaxis: { title: 'Log2 Expression' },
+        showlegend: true,
+        hovermode: 'closest',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+
+    Plotly.newPlot('plotDiv', traces, layout, {responsive: true});
+}
+
+function createScatterplot() {
+    const colorBy = document.getElementById('colorBy').value;
+    const traces = [];
+    
+    if (colorBy === 'condition') {
+        // Group by condition
+        const conditions = [...new Set(currentData.map(d => d.condition))];
+        
+        conditions.forEach(condition => {
+            const conditionData = currentData.filter(d => d.condition === condition);
+            
+            traces.push({
+                x: conditionData.map(d => d.age),  // Use age on x-axis
+                y: conditionData.map(d => d.expression),
+                mode: 'markers',
+                type: 'scatter',
+                name: condition,
+                marker: {
+                    color: colors[condition],
+                    size: 8,
+                    opacity: 0.7
+                },
+                customdata: conditionData.map(d => [d.donor, d.sex]),
+                hovertemplate: '<b>%{fullData.name}</b><br>' +
+                             'Age: %{x}<br>' +
+                             'Expression: %{y:.2f}<br>' +
+                             'Donor: %{customdata[0]}<br>' +
+                             'Sex: %{customdata[1]}<br>' +
+                             '<extra></extra>'
+            });
+            
+            // Add trendline
+            if (conditionData.length > 1) {
+                const ages = conditionData.map(d => d.age);
+                const expressions = conditionData.map(d => d.expression);
+                const result = linearRegression(ages, expressions);
+                
+                const xRange = [Math.min(...ages), Math.max(...ages)];
+                const yRange = xRange.map(x => result.slope * x + result.intercept);
+                
+                traces.push({
+                    x: xRange,
+                    y: yRange,
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: `${condition} trend`,
+                    line: {
+                        color: colors[condition],
+                        width: 2,
+                        dash: 'dash'
+                    },
+                    hoverinfo: 'skip'
+                });
+            }
+        });
+    } else if (colorBy === 'sex') {
+        // Group by sex
+        const sexes = [...new Set(currentData.map(d => d.sex))];
+        
+        sexes.forEach(sex => {
+            const sexData = currentData.filter(d => d.sex === sex);
+            
+            traces.push({
+                x: sexData.map(d => d.age),  // Use age on x-axis
+                y: sexData.map(d => d.expression),
+                mode: 'markers',
+                type: 'scatter',
+                name: sex,
+                marker: {
+                    color: colors[sex],
+                    size: 8,
+                    opacity: 0.7
+                },
+                customdata: sexData.map(d => [d.donor, d.condition]),
+                hovertemplate: '<b>%{fullData.name}</b><br>' +
+                             'Age: %{x}<br>' +
+                             'Expression: %{y:.2f}<br>' +
+                             'Donor: %{customdata[0]}<br>' +
+                             'Condition: %{customdata[1]}<br>' +
+                             '<extra></extra>'
+            });
+            
+            // Add trendlines for each sex
+            if (sexData.length > 1) {
+                const ages = sexData.map(d => d.age);
+                const expressions = sexData.map(d => d.expression);
+                const result = linearRegression(ages, expressions);
+                
+                const xRange = [Math.min(...ages), Math.max(...ages)];
+                const yRange = xRange.map(x => result.slope * x + result.intercept);
+                
+                traces.push({
+                    x: xRange,
+                    y: yRange,
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: `${sex} trend`,
+                    line: {
+                        color: colors[sex],
+                        width: 2,
+                        dash: 'dash'
+                    },
+                    hoverinfo: 'skip'
+                });
+            }
+        });
+    } else { // age - group by condition but color by age
+        const conditions = [...new Set(currentData.map(d => d.condition))];
+        
+        conditions.forEach(condition => {
+            const conditionData = currentData.filter(d => d.condition === condition);
+            
+            traces.push({
+                x: conditionData.map(d => d.age),  // Use age on x-axis
+                y: conditionData.map(d => d.expression),
+                mode: 'markers',
+                type: 'scatter',
+                name: condition,
+                marker: {
+                    color: conditionData.map(d => d.age),
+                    colorscale: ageColorScale,
+                    size: 8,
+                    opacity: 0.7,
+                    colorbar: {
+                        title: 'Age',
+                        tickfont: { size: 10 }
+                    }
+                },
+                customdata: conditionData.map(d => [d.donor, d.sex]),
+                hovertemplate: '<b>%{fullData.name}</b><br>' +
+                             'Age: %{x}<br>' +
+                             'Expression: %{y:.2f}<br>' +
+                             'Donor: %{customdata[0]}<br>' +
+                             'Sex: %{customdata[1]}<br>' +
+                             '<extra></extra>'
+            });
+            
+            // Add trendline
+            if (conditionData.length > 1) {
+                const ages = conditionData.map(d => d.age);
+                const expressions = conditionData.map(d => d.expression);
+                const result = linearRegression(ages, expressions);
+                
+                const xRange = [Math.min(...ages), Math.max(...ages)];
+                const yRange = xRange.map(x => result.slope * x + result.intercept);
+                
+                traces.push({
+                    x: xRange,
+                    y: yRange,
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: `${condition} trend`,
+                    line: {
+                        color: colors[condition],
+                        width: 2,
+                        dash: 'dash'
+                    },
+                    hoverinfo: 'skip'
+                });
+            }
+        });
+    }
+
+    const layout = {
+        title: `${selectedGene.symbol} Expression vs. Age (Log2FC: ${selectedGene.log2FoldChange.toFixed(2)})`,
+        xaxis: { title: 'Age' },
+        yaxis: { title: 'Log2 Expression' },
+        showlegend: true,
+        hovermode: 'closest',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+
+    Plotly.newPlot('plotDiv', traces, layout, {responsive: true});
+}
+
+// Helper function for linear regression
+function linearRegression(x, y) {
+    const n = x.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    
+    for (let i = 0; i < n; i++) {
+        sumX += x[i];
+        sumY += y[i];
+        sumXY += x[i] * y[i];
+        sumX2 += x[i] * x[i];
+    }
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    return { slope, intercept };
+}
+
+// Event listeners
+searchInput.addEventListener('input', (e) => {
+    updateGeneList(e.target.value);
+});
+
+document.getElementById('plotType').addEventListener('change', updatePlot);
+document.getElementById('colorBy').addEventListener('change', updatePlot);
+
+// Initialize
+updateGeneList();
+</script>
+</body>
+</html>
