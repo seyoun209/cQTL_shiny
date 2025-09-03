@@ -1,4 +1,4 @@
-setwd("/work/users/s/e/seyoun/chon_page")
+setwd("/work/users/s/e/seyoun/cQTL_shiny")
 
 # Load libraries
 library(tidyverse)
@@ -61,7 +61,7 @@ print(paste("Number of significant genes:", length(sig_genes)))
 
 # Prepare gene list for JSON
 genes_for_json <- counts_annot %>%
-  filter(ensgID %in% sig_genes) %>%
+  #filter(ensgID %in% sig_genes) %>%
   distinct(ensgID, SYMBOL, log2FoldChange, padj, baseMean) %>%
   mutate(SYMBOL = ifelse(is.na(SYMBOL), ensgID, SYMBOL)) %>%
   rename(gene_id = ensgID)
@@ -71,7 +71,7 @@ write_json(genes_for_json, "data/genes.json")
 
 # Create expression data subset
 counts_subset <- counts_annot %>% 
-  filter(ensgID %in% sig_genes) %>%
+  #filter(ensgID %in% sig_genes) %>%
   mutate(SYMBOL = ifelse(is.na(SYMBOL), ensgID, SYMBOL)) %>%
   select(ensgID, SYMBOL, sample, donor, condition, sex, count, age) %>%
   rename(Age = age)

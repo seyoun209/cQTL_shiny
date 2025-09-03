@@ -22,6 +22,3 @@ This repository contains tools for exploring gene expression data in chondrocyte
 - `scripts/00_cleanup_data.R`: Data processing script
 - `app.R`: Shiny application
 
-## Contact
-
-For questions or issues, please contact [your email/name].
